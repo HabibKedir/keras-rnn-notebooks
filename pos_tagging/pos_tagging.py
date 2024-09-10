@@ -11,23 +11,46 @@
 # 
 # ### <font color='#6629b2'>Part-of-speech (POS) tagging</font>
 # 
-# A part-of-speech tag is the syntactic category associated with a particular word in a sentence, such as a noun, verb, preposition, determiner, adjective or adverb. Part-of-speech tagging is a fundamental task in natural language processing; see the [chapter in Juraksky & Martin's *Speech and Language Processing*](https://web.stanford.edu/~jurafsky/slp3/10.pdf) for more background. POS tagging is a common pre-processing step in many NLP pipelines. For example, words with certain POS tags are more important than other words for capturing the content of a text (e.g. nouns and verbs carry more semantic meaning than grammatical words like prepositions and determiners), so models often take this into account when predicting the topic, sentiment, or some other categorical dimensions of a text. Start-of-the art models are quite successful, reaching near-perfect accuracy in the tags assigned to words. This notebook will show how to put together a simple tagger that uses a Recurrent Neural Network, though it does not perform as well as more advanced models.
+# A part-of-speech tag is the syntactic category associated with a particular word in a sentence, such as a noun, verb, preposition, determiner, adjective or adverb. 
+Part-of-speech tagging is a fundamental task in natural language processing; see the [chapter in Juraksky & Martin's *Speech and Language Processing*]
+(https://web.stanford.edu/~jurafsky/slp3/10.pdf) for more background. POS tagging is a common pre-processing step in many NLP pipelines. 
+For example, words with certain POS tags are more important than other words for capturing the content of a text 
+(e.g. nouns and verbs carry more semantic meaning than grammatical words like prepositions and determiners), so models often take this into account 
+when predicting the topic, sentiment, or some other categorical dimensions of a text. Start-of-the art models are quite successful, 
+reaching near-perfect accuracy in the tags assigned to words. This notebook will show how to put together a simple tagger that uses a Recurrent Neural Network, 
+though it does not perform as well as more advanced models.
 # 
+    
 # ### <font color='#6629b2'>Recurrent Neural Networks (RNNs)</font>
 # 
-# RNNs are a general framework for modeling sequence data and are particularly useful for natural language processing tasks. At a high level, RNN encode sequences via a set of parameters (weights) that are optimized to predict some output variable. This notebook demonstrates the code needed to assemble an RNN model using the Keras library, as well as some data processing tools that facilitate building the model. 
+# RNNs are a general framework for modeling sequence data and are particularly useful for natural language processing tasks. 
+At a high level, RNN encode sequences via a set of parameters (weights) that are optimized to predict some output variable.
+This notebook demonstrates the code needed to assemble an RNN model using the Keras library, as well as some data processing tools that facilitate building the model. 
 # 
-# If you understand how to structure the input and output of the model, and know the fundamental concepts in machine learning, then a high-level understanding of how an RNN works is sufficient for using Keras. You'll see that most of the code here is actually just data manipulation, and I'll visualize each step in this process. The code used to assemble the RNN itself is more minimal. It is of course useful to know the technical details of the RNN, so you can theorize on the results and innovate the model to make it better. For a better understanding of RNNs and neural networks in general, see the resources at the bottom of the notebook.
+# If you understand how to structure the input and output of the model, and know the fundamental concepts in machine learning, 
+then a high-level understanding of how an RNN works is sufficient for using Keras. You'll see that most of the code here is actually just data manipulation, 
+and I'll visualize each step in this process. The code used to assemble the RNN itself is more minimal.
+It is of course useful to know the technical details of the RNN, so you can theorize on the results and innovate the model to make it better.
+For a better understanding of RNNs and neural networks in general, see the resources at the bottom of the notebook.
 # 
-# Here an RNN will be used to encode a sentence and assign a POS tag to each word. The model shown here is applicable to any dataset with a one-to-one mapping between the inputs and outputs. This involves any task where for each sequential unit (here, a word), there is some output unit (here, a POS tag) that should be assigned to that input unit.
+# Here an RNN will be used to encode a sentence and assign a POS tag to each word. The model shown here is applicable to any dataset 
+    with a one-to-one mapping between the inputs and outputs. This involves any task where for each sequential unit (here, a word), there is some output unit 
+(here, a POS tag) that should be assigned to that input unit.
 # 
 # ### <font color='#6629b2'>Keras</font>
 # 
-# [Keras](https://keras.io/) is a Python deep learning framework that lets you quickly put together neural network models with a minimal amount of code. It can be run on top of the mathematical optimization libraries [Theano](http://deeplearning.net/software/theano/) or [Tensor Flow](https://www.tensorflow.org/) without you needing to know either of these underlying frameworks. It provides implementations of several of the layer architectures, objective functions, and optimization algorithms you need for building a model.
+# [Keras](https://keras.io/) is a Python deep learning framework that lets you quickly put together neural network models with a minimal amount of code. 
+    It can be run on top of the mathematical optimization libraries [Theano](http://deeplearning.net/software/theano/) or [Tensor Flow](https://www.tensorflow.org/) 
+without you needing to know either of these underlying frameworks. It provides implementations of several of the layer architectures, objective functions, and 
+optimization algorithms you need for building a model.
 
 # ## <font color='#6629b2'>Dataset</font>
 # 
-# The [Brown Corpus](http://www.hit.uib.no/icame/brown/bcm.html) (download through NLTK [here](http://www.nltk.org/nltk_data/)) is a popular NLP resource that consists of 500 texts from a variety of sources, including news reports, academic essays, and fiction. Every word in the texts has been annotated with a POS tag. There are different POS annotation schemes provided in the corpus, which differ in the number of tags. Here I use coarse-grained tags, of which there are eleven unique tags (for example, some schemes might split up the "VERB" tag into tags based on the specific tense of the verb). I set up the dataset so that each entry is a single sentence. The code below loads a sample of 100 sentences from the corpus, so see the above link to get the full dataset.
+# The [Brown Corpus](http://www.hit.uib.no/icame/brown/bcm.html) (download through NLTK [here](http://www.nltk.org/nltk_data/)) 
+is a popular NLP resource that consists of 500 texts from a variety of sources, including news reports, academic essays, and fiction. 
+Every word in the texts has been annotated with a POS tag. There are different POS annotation schemes provided in the corpus, which differ in the number of tags. 
+Here I use coarse-grained tags, of which there are eleven unique tags (for example, some schemes might split up the "VERB" tag into tags based on the specific tense of the verb). 
+I set up the dataset so that each entry is a single sentence. The code below loads a sample of 100 sentences from the corpus, so see the above link to get the full dataset.
 
 # In[ ]:
 
@@ -36,7 +59,8 @@ import pandas
 pandas.set_option('display.max_colwidth', 170) #widen pandas rows display
 
 
-# I'll load the datasets using the [pandas library](https://pandas.pydata.org/), which is extremely useful for any task involving data storage and manipulation. This library puts a dataset into a readable table format, and makes it easy to retrieve specific columns and rows.
+# I'll load the datasets using the [pandas library](https://pandas.pydata.org/), which is extremely useful for any task involving data storage and manipulation. 
+This library puts a dataset into a readable table format, and makes it easy to retrieve specific columns and rows.
 
 # In[ ]:
 
@@ -57,7 +81,13 @@ train_sents[:10]
 # 
 # ###  <font color='#6629b2'>Lexicons</font>
 # 
-# We need to assemble lexicons for both the words and tags. The term "lexicon" usually refers specifically to the words in a model, but here I use it generally to mean a mapping between strings and numerical indices, which applies to the POS tags as well. Each word/tag is assigned a numerical index that can be read by the model. For the words lexicon, since large datasets may contain a huge number of unique words, it's common to filter all words occurring less than a certain number of times and replace them with some generic &lt;UNK&gt; token. The min_freq parameter in the function below defines this threshold. For the tags, we'll include all of them in the model since these are the output classes we are trying to predict. There are only 11 tags in this dataset. An &lt;UNK&gt; tag is included, even though it doesn't actually appear in the dataset; this isn't a problem, because the model will learn not to predict it.
+# We need to assemble lexicons for both the words and tags. The term "lexicon" usually refers specifically to the words in a model, 
+but here I use it generally to mean a mapping between strings and numerical indices, which applies to the POS tags as well. Each word/tag is 
+assigned a numerical index that can be read by the model. For the words lexicon, since large datasets may contain a huge number of unique words, 
+it's common to filter all words occurring less than a certain number of times and replace them with some generic &lt;UNK&gt; token. 
+The min_freq parameter in the function below defines this threshold. For the tags, we'll include all of them in the model since these are the output classes we are trying to predict.
+There are only 11 tags in this dataset. An &lt;UNK&gt; tag is included, even though it doesn't actually appear in the dataset; this isn't a problem, 
+because the model will learn not to predict it.
 
 # In[ ]:
 
@@ -98,7 +128,8 @@ with open('example_model/tags_lexicon.pkl', 'wb') as f: #save the words lexicon 
     pickle.dump(tags_lexicon, f)
 
 
-# Because the model will output tags as indices, we'll obviously need to map each tag number back to its corresponding string representation in order to later interpret the output. We'll reverse the tags lexicon to create a lookup table to get each tag from its index.
+# Because the model will output tags as indices, we'll obviously need to map each tag number back to its corresponding string representation in order to later interpret the output. 
+We'll reverse the tags lexicon to create a lookup table to get each tag from its index.
 
 # In[ ]:
 
@@ -131,7 +162,11 @@ train_sents[['Tokenized_Sentence', 'Sentence_Idxs', 'Tagged_Sentence', 'Tag_Idxs
 
 # ###  <font color='#6629b2'>Numerical lists to matrices</font>
 # 
-# Finally, we need to put the input sequences into matrices for training. There will be separate matrices for the word and tag sequences, where each row is a sentence and each column is a word (or tag) index in that sentence. This matrix format is necessary for the model to process the sentences in batches as opposed to one at a time, which significantly speeds up training. However, each sentence has a different number of words, so we create a padded matrix equal to the length on the longest sentence in the training set. For all sentences with fewer words, we prepend the row with zeros representing an empty word (and tag) position. We can specify to Keras to ignore these zeros during training.
+# Finally, we need to put the input sequences into matrices for training. There will be separate matrices for the word and tag sequences, 
+where each row is a sentence and each column is a word (or tag) index in that sentence. This matrix format is necessary for the model to process the sentences in 
+batches as opposed to one at a time, which significantly speeds up training. However, each sentence has a different number of words,
+so we create a padded matrix equal to the length on the longest sentence in the training set. For all sentences with fewer words, 
+we prepend the row with zeros representing an empty word (and tag) position. We can specify to Keras to ignore these zeros during training.
 
 # In[ ]:
 
@@ -157,7 +192,10 @@ print("SHAPE:", train_padded_tags.shape, "\n")
 
 # ### <font color='#6629b2'>Defining the input and output</font>
 # 
-# In this approach, for each word in a sentence, we predict the tag for that word based on two types of input: 1. all the words in the sentence up to that point, including that current word, and 2. all the previous tags in the sentence. So for a given position in the sentence *idx*, the input is train_padded_words[idx] and train_padded_tags[idx-1], and the output is train_padded_tags[idx]. The example below shows this alignment for the first sentence in the dataset.
+# In this approach, for each word in a sentence, we predict the tag for that word based on two types of input: 1. 
+all the words in the sentence up to that point, including that current word, and 2. all the previous tags in the sentence. So for a given position in the sentence *idx*,                                                                                                           
+the input is train_padded_words[idx] and train_padded_tags[idx-1], and the output is train_padded_tags[idx]. The example below shows this alignment for the first sentence in the dataset.
+
 # 
 
 # In[ ]:
@@ -182,7 +220,12 @@ print(pandas.DataFrame(list(zip(train_padded_words[0,1:], train_padded_tags[0,:-
 # 
 # ### <font color='#6629b2'>Functional API</font>
 # 
-# To set up the model, we'll use Keras [Functional API](https://keras.io/getting-started/functional-api-guide/), which is one of two ways to assemble models in Keras (the alternative is the [Sequential API](https://keras.io/getting-started/sequential-model-guide/), which is a bit simpler but has more constraints). For the POS tagger model, new tags will be predicted from the combination of two input sequences, the words in the sentence and the corresponding tags in the sentence. The Functional API is specifically useful when a model has multiple inputs and/or outputs. Compared to the Sequential model where the order in which the layers are added indicates which layers are connected, in the Functional API, the input to a particular layer must be specified as a parameter, e.g. Embedding()(word_input). This is what enables the model to have multiple inputs and outputs. A model is defined with the Model() function, and there the list of inputs and outputs is explicitly given. 
+# To set up the model, we'll use Keras [Functional API](https://keras.io/getting-started/functional-api-guide/), which is one of two ways to assemble models in Keras 
+    (the alternative is the [Sequential API](https://keras.io/getting-started/sequential-model-guide/), which is a bit simpler but has more constraints). For the POS tagger model, 
+new tags will be predicted from the combination of two input sequences, the words in the sentence and the corresponding tags in the sentence. 
+The Functional API is specifically useful when a model has multiple inputs and/or outputs. Compared to the Sequential model where the order in which the layers are added indicates 
+which layers are connected, in the Functional API, the input to a particular layer must be specified as a parameter, e.g. Embedding()(word_input). 
+This is what enables the model to have multiple inputs and outputs. A model is defined with the Model() function, and there the list of inputs and outputs is explicitly given. 
 # 
 # ### <font color='#6629b2'>Layers</font>
 # 
@@ -190,29 +233,45 @@ print(pandas.DataFrame(list(zip(train_padded_words[0,1:], train_padded_tags[0,:-
 # 
 # **1. Input (words)**: This input layer takes in a sequence of word indices.
 # 
-# **1. Input (tags)**: This is the other input layer alongside the first, and it takes in a sequence of tag indices. It is on the same level as the word input layer, so both input sequences are read in parallel by the model.
+# **1. Input (tags)**: This is the other input layer alongside the first, and it takes in a sequence of tag indices. It is on the same level as the word input layer, 
+so both input sequences are read in parallel by the model.
 # 
-# **2. Embedding (words)**: There are two embedding layers, one for the words and a different one for the tags. Both of them function the same way: they convert the indices into distributed vector representations (embeddings). The mask_zero=True parameter indicates that values of 0 in the matrix (the padding) will be ignored by the model.
+# **2. Embedding (words)**: There are two embedding layers, one for the words and a different one for the tags. Both of them function the same way: they convert the
+    indices into distributed vector representations (embeddings). The mask_zero=True parameter indicates that values of 0 in the matrix (the padding) will be ignored by the model.
 # 
 # **2. Embedding (tags)**: Same as the word embedding layer, but for the tags.
 # 
-# **3. Concatenate**: This layer merges each embedded word sequence and corresponding embedded tag sequence into a single sequence. This means that for a given word and the tag for that word, their vectors will be concatenated into a single vector.
+# **3. Concatenate**: This layer merges each embedded word sequence and corresponding embedded tag sequence into a single sequence.
+This means that for a given word and the tag for that word, their vectors will be concatenated into a single vector.
 # 
-# **4. GRU**: The recurrent (GRU) hidden layer reads the merged embedded sequence and computes a representation (hidden state) of the sequence. The result is a new vector for each word/tag in the sequence. There are a few architectures for this layer - I use the GRU variation, Keras also provides LSTM or just the simple vanilla recurrent layer. By specifying return_sequences=True in the below function, this layer will output the entire sequence of vectors (hidden states) for the sequence, rather than just the most recent hidden state that is returned by default.
+# **4. GRU**: The recurrent (GRU) hidden layer reads the merged embedded sequence and computes a representation (hidden state) of the sequence. 
+ The result is a new vector for each word/tag in the sequence. There are a few architectures for this layer -
+I use the GRU variation, Keras also provides LSTM or just the simple vanilla recurrent layer. 
+ By specifying return_sequences=True in the below function, this layer will output the entire sequence of vectors (hidden states) for the sequence, 
+              rather than just the most recent hidden state that is returned by default.
 # 
-# **5. (Time Distributed) Dense**: An output layer that produces a probability distribution for each possible tag for each word in the sequence. The 'softmax' activation is what transforms the values of this layer into scores from 0 to 1 that can be treated as probabilities. The Dense layer produces the probability scores for one particular timepoint (word). By wrapping this in a TimeDistributed() layer, the model outputs a probability distribution for every timepoint in the sequence. 
+# **5. (Time Distributed) Dense**: An output layer that produces a probability distribution for each possible tag for each word in the sequence.
+                  
+ The 'softmax' activation is what transforms the values of this layer into scores from 0 to 1 that can be treated as probabilities. 
+ The Dense layer produces the probability scores for one particular timepoint (word). By wrapping this in a TimeDistributed() layer,
+ the model outputs a probability distribution for every timepoint in the sequence. 
 # 
-# The term "layer" is just an abstraction, when really all these layers are just matrices. Each layer is connected to the layer above it via a set of weights (also matrices), which are the parameters that are adjusted during training in order for the model to learn to predict tags. The process of training a neural network is a series of matrix multiplications. 
+# The term "layer" is just an abstraction, when really all these layers are just matrices. Each layer is connected to the layer above it via a set of weights
+ (also matrices), which are the parameters that are adjusted during training in order for the model to learn to predict tags. 
+ The process of training a neural network is a series of matrix multiplications. 
 # 
 # ### <font color='#6629b2'>Parameters</font>
 # 
 # Our function for creating the model takes the following parameters:
 # 
-# **seq_input_length**: the length of the padded matrices for the word and tag sentence inputs, which will be the same since there is a one-to-one mapping between tags. This is equal to the length of the longest sentence in the training data. 
+# **seq_input_length**: the length of the padded matrices for the word and tag sentence inputs, which will be the same since there is a one-to-one mapping between tags. 
+                  This is equal to the length of the longest sentence in the training data. 
 # 
-# **n_word_input_nodes**: the number of unique words in the lexicon, plus one to account for matrix padding represented by 0 values. This indicates the number of rows in the word embedding layer, where each row corresponds to a word.
+# **n_word_input_nodes**: the number of unique words in the lexicon, plus one to account for matrix padding represented by 0 values. 
+   This indicates the number of rows in the word embedding layer, where each row corresponds to a word.
 # 
-# **n_tag_input_nodes**: the number of unique tags in the dataset, plus one to account for padding. This indicates the number of rows in the tag embedding layer, where each row corresponds to a tag.
+# **n_tag_input_nodes**: the number of unique tags in the dataset, plus one to account for padding. 
+                  This indicates the number of rows in the tag embedding layer, where each row corresponds to a tag.
 # 
 # **n_word_embedding_nodes**: the number of dimensions in the word embedding layer, which can be freely defined. Here, it is set to 300.
 # 
@@ -220,13 +279,26 @@ print(pandas.DataFrame(list(zip(train_padded_words[0,1:], train_padded_tags[0,:-
 # 
 # **n_hidden_nodes**: the number of dimensions in the hidden layer. Like the embedding layers, this can be freely chosen. Here, it is set to 500.
 # 
-# **stateful**: By default, the GRU hidden layer will reset its state (i.e. its values will be 0s) each time a new set of sequences is read into the model.  However, when stateful=True is given, this parameter indicates that the GRU hidden layer should "remember" its state until it is explicitly told to forget it. In other words, the values in this layer will be carried over between separate calls to the training function. This is useful when processing long sequences, so that the model can iterate through chunks of the sequences rather than loading the entire matrix at the same time, which is memory-intensive. I'll show below how this setting is also useful when tagging new sequences. Here, because the training sequences only consist of one sentence, stateful will be set to False during training. At prediction time, it will be set to True.
+# **stateful**: By default, the GRU hidden layer will reset its state (i.e. its values will be 0s) each time a new set of sequences is read into the model.  
+                  However, when stateful=True is given, this parameter indicates that the GRU hidden layer should "remember" its state until it is explicitly told to forget it. 
+                  In other words, the values in this layer will be carried over between separate calls to the training function. This is useful when processing long sequences, so that the model can iterate through chunks of the sequences rather than loading the entire matrix at the same time, which is memory-intensive. I'll show below how this setting is also useful when tagging new sequences. Here, because the training sequences only consist of one sentence, stateful will be set to False during training. At prediction time, it will be set to True.
 # 
-# **batch_size**: It is not always necessary to specify the batch size when setting up a Keras model. The fit() function will apply batch processing by default and the batch size can be given as a parameter. However, when a model is stateful, the batch size does need to be specified in the Input() layers. Here, for training, batch_size=None, so Keras will use its default batch size (which is 32). During prediction, the batch size will be set to 1.
+# **batch_size**: It is not always necessary to specify the batch size when setting up a Keras model. The fit() function will apply batch processing by default and the batch size 
+     can be given as a parameter. However, when a model is stateful, the batch size does need to be specified in the Input() layers. Here, for training, batch_size=None, 
+  so Keras will use its default batch size (which is 32). During prediction, the batch size will be set to 1.
 # 
 # ### <font color='#6629b2'>Procedure</font>
 # 
-# The output of the model is a sequence of vectors, each with the same number of dimensions as the number of unique tags (n_tag_input_nodes). Each vector contains the predicted probability of each possible tag for the corresponding word in that position in the sequence. Like all neural networks, RNNs learn by updating the parameters (weights) to optimize an objective (loss) function applied to the output. For this model, the objective is to minimize the cross entropy (named as the "sparse_categorical_crossentropy" in the code) between the predicted tag probabilities and the probabilities observed from the words in training data, resulting in probabilities that more accurately predict when a particular tag will appear. This is the general procedure used for all multi-label classification tasks. Updates to the weights of the model are performed using an optimization algorithm, such as Adam used here. The details of this process are extensive; see the resources at the bottom of the notebook if you want a deeper understanding. One huge benefit of Keras is that it implements many of these details for you. Not only does it already have implementations of the types of layer architectures, it also has many of the [loss functions](https://keras.io/losses/) and [optimization methods](https://keras.io/optimizers/) you need for training various models. The specific loss function and optimization method you use is specified when compiling the model with the model.compile() function.
+# The output of the model is a sequence of vectors, each with the same number of dimensions as the number of unique tags (n_tag_input_nodes). 
+Each vector contains the predicted probability of each possible tag for the corresponding word in that position in the sequence. Like all neural networks, 
+  RNNs learn by updating the parameters (weights) to optimize an objective (loss) function applied to the output. For this model, the objective is to minimize the 
+ cross entropy (named as the "sparse_categorical_crossentropy" in the code) between the predicted tag probabilities 
+ and the probabilities observed from the words in training data, resulting in probabilities that more accurately predict when a particular tag will appear. 
+  This is the general procedure used for all multi-label classification tasks. Updates to the weights of the model are performed using an optimization algorithm, 
+ such as Adam used here. The details of this process are extensive; see the resources at the bottom of the notebook if you want a deeper understanding. 
+One huge benefit of Keras is that it implements many of these details for you. Not only does it already have implementations of the types of layer architectures, 
+ it also has many of the [loss functions](https://keras.io/losses/) and [optimization methods](https://keras.io/optimizers/) you need for training various models.
+ The specific loss function and optimization method you use is specified when compiling the model with the model.compile() function.
 # 
 
 # In[ ]:
@@ -303,7 +375,9 @@ model.save_weights('example_model/model_weights.h5') #Save model
 
 # ## <font color='#6629b2'>Tagging new sentences</font>
 # 
-# Now that the model is trained, it can be used to predict tags in new sentences in the test set. As opposed to training where we processed multiple sentences at the same time, it will be more straightforward to demonstrate tagging on a single sentence at a time. In Keras, you can duplicate a model by loading the parameters from a saved model into a new model. Here, this new model will have a batch size of 1. It will also process a sentence one word/tag at a time (seq_input_len=1) and predict the next tag, using the stateful=True parameter to remember its previous predictions within that sentence. The other parameters of this prediction model are exactly the same as the trained model, which is why the weights can be readily transferred. To demonstrate prediction performance, I'll load the weights from a saved model previously trained on the full training set of 51606 sentences (as opposed to 100 sentences in the example dataset used above). I'll apply the model to an example test set of 100 sentences that were not observed during training.
+# Now that the model is trained, it can be used to predict tags in new sentences in the test set. As opposed to training where we processed multiple sentences at the same time,
+        it will be more straightforward to demonstrate tagging on a single sentence at a time. In Keras, you can duplicate a model by loading the parameters from a saved model into a 
+        new model. Here, this new model will have a batch size of 1. It will also process a sentence one word/tag at a time (seq_input_len=1) and predict the next tag, using the stateful=True parameter to remember its previous predictions within that sentence. The other parameters of this prediction model are exactly the same as the trained model, which is why the weights can be readily transferred. To demonstrate prediction performance, I'll load the weights from a saved model previously trained on the full training set of 51606 sentences (as opposed to 100 sentences in the example dataset used above). I'll apply the model to an example test set of 100 sentences that were not observed during training.
 # 
 
 # In[ ]:
@@ -342,7 +416,13 @@ test_sents['Sentence_Idxs'] = tokens_to_idxs(test_sents['Tokenized_Sentence'], w
 test_sents['Tag_Idxs'] = tokens_to_idxs(test_sents['Tagged_Sentence'], tags_lexicon)
 
 
-# We'll iterate through the sentences in the test set and tag each of them. For each sentence, we start with an empty list for the predicted tags. For the first word in the sentence, there is no previous tag, so the model reads that word and the empty tag 0 (the padding value). The predict() function returns a probability distribution over the tags, and we pick the tag with the highest probability as the one to assign that word. This tag is appended to our list of predicted tags, and we continue to the next word in the sentence. Because the model is stateful, we can simply provide the current word and most recent tag as input to the predict() function, since its hidden layer has memorized the sequence of words/tags observed so far. After the entire sentence has been tagged, we call reset_states() to clear the values for this sentence so we can process a new sentence. The tag indices are mapped back to their string forms, which we show in the sample below, alongside the correct (gold) tags for comparison.
+# We'll iterate through the sentences in the test set and tag each of them. For each sentence, we start with an empty list for the predicted tags. 
+For the first word in the sentence, there is no previous tag, so the model reads that word and the empty tag 0 (the padding value). The predict() 
+function returns a probability distribution over the tags, and we pick the tag with the highest probability as the one to assign that word. 
+This tag is appended to our list of predicted tags, and we continue to the next word in the sentence. Because the model is stateful, 
+ we can simply provide the current word and most recent tag as input to the predict() function, since its hidden layer has memorized the sequence of words/tags 
+  observed so far. After the entire sentence has been tagged, we call reset_states() to clear the values for this sentence so we can process a new sentence. 
+ The tag indices are mapped back to their string forms, which we show in the sample below, alongside the correct (gold) tags for comparison.
 # 
 
 # In[ ]:
@@ -384,7 +464,13 @@ for _, sent in test_sents[:10].iterrows():
 
 # ### <font color='#6629b2'>Visualizing data inside the model</font>
 # 
-# To help visualize the data representation inside the model, we can look at the output of each layer individually. Keras' Functional API lets you derive a new model with the layers from an existing model, so you can define the output to be a layer below the output layer in the original model. Calling predict() on this new model will produce the output of that layer for a given input. Of course, glancing at the numbers by themselves doesn't provide any interpretation of what the model has learned (although there are opportunities to [interpret these values](https://www.civisanalytics.com/blog/interpreting-visualizing-neural-networks-text-processing/)), but seeing them verifies the model is just a series of transformations from one matrix to another. The get_layer() function lets you retrieve any layer by the name that was assigned to it when creating the model. Below is an example of the output for the tag embedding layer for the first word in the first sentence of the test set. You can do this same thing to view any layer.
+# To help visualize the data representation inside the model, we can look at the output of each layer individually. 
+Keras' Functional API lets you derive a new model with the layers from an existing model, so you can define the output to be a layer below the output layer in the original model. 
+  Calling predict() on this new model will produce the output of that layer for a given input. Of course, glancing at the numbers by themselves doesn't provide
+ any interpretation of what the model has learned (although there are opportunities to [interpret these values]
+ (https://www.civisanalytics.com/blog/interpreting-visualizing-neural-networks-text-processing/)), but seeing them verifies the model is just a
+ series of transformations from one matrix to another. The get_layer() function lets you retrieve any layer by the name that was assigned to it when creating the model. 
+     Below is an example of the output for the tag embedding layer for the first word in the first sentence of the test set. You can do this same thing to view any layer.
 
 # In[ ]:
 
@@ -413,7 +499,12 @@ print(hidden_to_output_weights)
 
 # ### <font color='#6629b2'>Evaluation</font>
 # 
-# We can evaluate our model with some of the standard metrics for classification: *precision*, *recall*, and *F1 score*. In the context of this task, precision is the proportion of the predicted tags for a particular class that were correct predictions (i.e. of all the words that were assigned a NOUN tag by the tagger, what percentage of these were actually nouns according to the test set?). Recall is the proportion of correct tags for a particular class that the tagger also predicted correctly (i.e. of all the words in the test set that should have been assigned a NOUN tag, what percentage of these were actually tagged as a NOUN?). F1 score is a weighted average of precision and recall. The scikit-learn package has several of these [evaluation metrics](http://scikit-learn.org/stable/modules/classes.html#sklearn-metrics-metrics) available.
+# We can evaluate our model with some of the standard metrics for classification: *precision*, *recall*, and *F1 score*. In the context of this task, 
+ precision is the proportion of the predicted tags for a particular class that were correct predictions (i.e. of all the words that were assigned a NOUN tag by the tagger, 
+ what percentage of these were actually nouns according to the test set?). Recall is the proportion of correct tags for a particular class that the tagger also predicted correctly
+   (i.e. of all the words in the test set that should have been assigned a NOUN tag, what percentage of these were actually tagged as a NOUN?). 
+  F1 score is a weighted average of precision and recall. The scikit-learn package has several of these [evaluation metrics]
+  (http://scikit-learn.org/stable/modules/classes.html#sklearn-metrics-metrics) available.
 
 # In[ ]:
 
@@ -437,19 +528,29 @@ if __name__ == '__main__':
 
 # ## <font color='#6629b2'>Conclusion</font>
 # 
-# Even though this model can accuractely predict many POS tags, state-of-the-art taggers use more sophisticated techniques. For example, where here we predicted a tag just based on the preceding words and tags, [bidirectional layers](https://keras.io/layers/wrappers/#bidirectional) also model the sequence that appears after the given word to additionally inform the prediction. POS tagging can be seen as a shallow version of syntactic parsing, which is a more difficult NLP problem. Where POS tagging outputs a flat sequence with a one-to-one mapping between words and tags, syntatic parsing produces a hierarchical structure where categories consist of multiple-word phrases and phrase categories are embedded inside other phrases. Check out the [chapter from Jurafsky & Martin's book](https://web.stanford.edu/~jurafsky/slp3/14.pdf) if you're interested in learning more about these deeper models of linguistic structure.
+# Even though this model can accuractely predict many POS tags, state-of-the-art taggers use more sophisticated techniques. 
+ For example, where here we predicted a tag just based on the preceding words and tags, [bidirectional layers]
+ (https://keras.io/layers/wrappers/#bidirectional) also model the sequence that appears after the given word to additionally inform the prediction. 
+  POS tagging can be seen as a shallow version of syntactic parsing, which is a more difficult NLP problem. Where POS tagging outputs a flat sequence with 
+ a one-to-one mapping between words and tags, syntatic parsing produces a hierarchical structure where categories consist of multiple-word phrases and 
+  phrase categories are embedded inside other phrases. Check out the [chapter from Jurafsky & Martin's book](https://web.stanford.edu/~jurafsky/slp3/14.pdf)
+  if you're interested in learning more about these deeper models of linguistic structure.
 
 # ## <font color='#6629b2'>More resources</font>
 # 
-# Yoav Goldberg's book [Neural Network Methods for Natural Language Processing](http://www.morganclaypool.com/doi/abs/10.2200/S00762ED1V01Y201703HLT037) is a thorough introduction to neural networks for NLP tasks in general
+# Yoav Goldberg's book [Neural Network Methods for Natural Language Processing](http://www.morganclaypool.com/doi/abs/10.2200/S00762ED1V01Y201703HLT037) is 
+  a thorough introduction to neural networks for NLP tasks in general
 # 
-# If you'd like to learn more about what Keras is doing under the hood, the [Theano tutorials](http://deeplearning.net/tutorial/) are useful. There is one specifically on [semantic parsing](http://deeplearning.net/tutorial/rnnslu.html#rnnslu), which is related to the POS tagging task.
+# If you'd like to learn more about what Keras is doing under the hood, the [Theano tutorials](http://deeplearning.net/tutorial/) are useful. There is one specifically 
+  on [semantic parsing](http://deeplearning.net/tutorial/rnnslu.html#rnnslu), which is related to the POS tagging task.
 # 
 # TensorFlow also has an RNN language model [tutorial](https://www.tensorflow.org/versions/r0.12/tutorials/recurrent/index.html) using the Penn Treebank dataset
 # 
-# Andrej Karpathy's blog post [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/) is very helpful for understanding the underlying details of the same language model I've demonstrated here. It also provides raw Python code with an implementation of the backpropagation algorithm.
+# Andrej Karpathy's blog post [The Unreasonable Effectiveness of Recurrent Neural Networks](http://karpathy.github.io/2015/05/21/rnn-effectiveness/) is very helpful 
+for understanding the underlying details of the same language model I've demonstrated here. It also provides raw Python code with an implementation of the backpropagation algorithm.
 # 
 # Chris Olah provides a good [explanation](http://colah.github.io/posts/2015-08-Understanding-LSTMs/) of how LSTM RNNs work (this explanation also applies to the GRU model used here)
 # 
-# Denny Britz's [tutorial](http://www.wildml.com/2015/09/recurrent-neural-networks-tutorial-part-1-introduction-to-rnns/) documents well both the technical details of RNNs and their implementation in Python.
+# Denny Britz's [tutorial](http://www.wildml.com/2015/09/recurrent-neural-networks-tutorial-part-1-introduction-to-rnns/) documents well both the technical details of RNNs and their 
+ implementation in Python.
 # 
